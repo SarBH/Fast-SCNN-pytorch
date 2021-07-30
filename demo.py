@@ -16,7 +16,7 @@ parser.add_argument('--dataset', type=str, default='citys',
 parser.add_argument('--weights-folder', default='./weights',
                     help='Directory for saving checkpoint models')
 parser.add_argument('--input-pic', type=str,
-                    default='./datasets/citys/leftImg8bit/test/berlin/berlin_000000_000019_leftImg8bit.png',
+                    default='../data/citys/leftImg8bit/test/berlin/berlin_000000_000019_leftImg8bit.png',
                     help='path to the input picture')
 parser.add_argument('--outdir', default='./test_result', type=str,
                     help='path to save the predict result')
@@ -42,9 +42,19 @@ def demo():
     image = transform(image).unsqueeze(0).to(device)
     model = get_fast_scnn(args.dataset, pretrained=True, root=args.weights_folder, map_cpu=args.cpu).to(device)
     print('Finished loading model!')
+    
     model.eval()
+
     with torch.no_grad():
         outputs = model(image)
+
+
+    # trace model to prepare for compile
+    model_traced = torch.jit.trace(model, image)
+    # persist traced model
+    torch.jit.save( model_traced, os.path.join(args.weights_folder, "traced_model.pt") )
+    print(f"traced model was saved to {os.path.join(args.weights_folder, 'traced_model.pt')}")
+
     pred = torch.argmax(outputs[0], 1).squeeze(0).cpu().data.numpy()
     mask = get_color_pallete(pred, args.dataset)
     outname = os.path.splitext(os.path.split(args.input_pic)[-1])[0] + '.png'
