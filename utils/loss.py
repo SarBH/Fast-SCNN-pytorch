@@ -38,17 +38,21 @@ class SoftmaxCrossEntropyOHEMLoss(nn.Module):
         self.ignore_label = ignore_label
         self.thresh = float(thresh)
         self.min_kept = int(min_kept)
+
+        self.device = kwargs['target_device']
         if use_weight:
             print("w/ class balance")
             weight = torch.FloatTensor([0.8373, 0.918, 0.866, 1.0345, 1.0166, 0.9969, 0.9754,
                                         1.0489, 0.8786, 1.0023, 0.9539, 0.9843, 1.1116, 0.9037, 1.0865, 1.0955,
-                                        1.0865, 1.1529, 1.0507])
+                                        1.0865, 1.1529, 1.0507]).to(self.device)
             self.criterion = torch.nn.CrossEntropyLoss(weight=weight, ignore_index=ignore_label)
         else:
             print("w/o class balance")
             self.criterion = torch.nn.CrossEntropyLoss(ignore_index=ignore_label)
 
     def forward(self, predict, target, weight=None):
+        target_device = target.device
+        predict_device = predict.device
         assert not target.requires_grad
         assert predict.dim() == 4
         assert target.dim() == 3
@@ -85,7 +89,8 @@ class SoftmaxCrossEntropyOHEMLoss(nn.Module):
         input_label[valid_inds] = label
         valid_flag_new = input_label != self.ignore_label
         # print(np.sum(valid_flag_new))
-        target = Variable(torch.from_numpy(input_label.reshape(target.size())).long().cuda())
+        target = Variable(torch.from_numpy(input_label.reshape(target.size())).long().to(target_device))
+        predict = predict.to(predict_device)
 
         return self.criterion(predict, target)
 
